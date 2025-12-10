@@ -1,0 +1,8 @@
+discord.py
+asyncpg
+python-dotenv
+langchain
+langchain-community
+langchain-openai
+openai
+tiktoken
