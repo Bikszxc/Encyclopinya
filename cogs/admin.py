@@ -17,10 +17,10 @@ class Admin(commands.Cog):
     ])
     @app_commands.default_permissions(administrator=True)
     async def config_role(self, interaction: discord.Interaction, role_type: app_commands.Choice[str], role: discord.Role):
+        await interaction.response.defer(ephemeral=True)
         await ConfigManager.set(f"role_{role_type.value}", str(role.id))
-        await interaction.response.send_message(
-            f"✅ Configured `{role_type.name}` role to {role.mention}",
-            delete_after=10
+        await interaction.followup.send(
+            f"✅ Configured `{role_type.name}` role to {role.mention}"
         )
 
     @config_group.command(name="channel", description="Set a channel for logs or gaps")
@@ -30,33 +30,34 @@ class Admin(commands.Cog):
     ])
     @app_commands.default_permissions(administrator=True)
     async def config_channel(self, interaction: discord.Interaction, channel_type: app_commands.Choice[str], channel: discord.TextChannel):
+        await interaction.response.defer(ephemeral=True)
         await ConfigManager.set(f"channel_{channel_type.value}", str(channel.id))
-        await interaction.response.send_message(
-            f"✅ Configured `{channel_type.name}` channel to {channel.mention}",
-            delete_after=10
+        await interaction.followup.send(
+            f"✅ Configured `{channel_type.name}` channel to {channel.mention}"
         )
 
     @config_group.command(name="threshold", description="Set the AI confidence threshold")
     @app_commands.describe(value="Value between 0.1 and 1.0")
     @app_commands.default_permissions(administrator=True)
     async def config_threshold(self, interaction: discord.Interaction, value: float):
+        await interaction.response.defer(ephemeral=True)
         if not 0.1 <= value <= 1.0:
-            await interaction.response.send_message("❌ Value must be between 0.1 and 1.0", ephemeral=True)
+            await interaction.followup.send("❌ Value must be between 0.1 and 1.0", ephemeral=True)
             return
         
         await ConfigManager.set("ai_threshold", str(value))
-        await interaction.response.send_message(
-            f"✅ AI Confidence Threshold set to `{value}`",
-            delete_after=10
+        await interaction.followup.send(
+            f"✅ AI Confidence Threshold set to `{value}`"
         )
 
     @config_group.command(name="reply_global", description="Toggle whether the bot replies to anyone")
     @app_commands.default_permissions(administrator=True)
     async def config_reply_global(self, interaction: discord.Interaction, enabled: bool):
+        await interaction.response.defer(ephemeral=True)
         await ConfigManager.set("global_reply_enabled", str(enabled).lower())
         status = "enabled" if enabled else "disabled"
         await self.bot.update_status()
-        await interaction.response.send_message(f"✅ Bot replies have been **{status}**.", delete_after=10)
+        await interaction.followup.send(f"✅ Bot replies have been **{status}**.")
 
     @config_group.command(name="reply_role", description="Manage roles allowed to interact with the bot (Optional whitelist)")
     @app_commands.choices(action=[
@@ -66,8 +67,9 @@ class Admin(commands.Cog):
     ])
     @app_commands.default_permissions(administrator=True)
     async def config_reply_role(self, interaction: discord.Interaction, action: app_commands.Choice[str], role: discord.Role = None):
+        await interaction.response.defer(ephemeral=True)
         if action.value in ["add", "remove"] and not role:
-            await interaction.response.send_message("❌ You must specify a role for Add/Remove.", ephemeral=True)
+            await interaction.followup.send("❌ You must specify a role for Add/Remove.", ephemeral=True)
             return
 
         current_raw = await ConfigManager.get("allowed_roles", "")
@@ -79,23 +81,23 @@ class Admin(commands.Cog):
                 current_list.append(str(role.id))
                 await ConfigManager.set("allowed_roles", ",".join(current_list))
                 await self.bot.update_status()
-                await interaction.response.send_message(f"✅ Added {role.mention} to allowed roles.", delete_after=10)
+                await interaction.followup.send(f"✅ Added {role.mention} to allowed roles.")
             else:
-                await interaction.response.send_message(f"⚠️ {role.mention} is already in the list.", ephemeral=True)
+                await interaction.followup.send(f"⚠️ {role.mention} is already in the list.", ephemeral=True)
 
         elif action.value == "remove":
             if str(role.id) in current_list:
                 current_list.remove(str(role.id))
                 await ConfigManager.set("allowed_roles", ",".join(current_list))
                 await self.bot.update_status()
-                await interaction.response.send_message(f"✅ Removed {role.mention} from allowed roles.", delete_after=10)
+                await interaction.followup.send(f"✅ Removed {role.mention} from allowed roles.")
             else:
-                await interaction.response.send_message(f"⚠️ {role.mention} was not in the list.", ephemeral=True)
+                await interaction.followup.send(f"⚠️ {role.mention} was not in the list.", ephemeral=True)
 
         elif action.value == "clear":
             await ConfigManager.set("allowed_roles", "")
             await self.bot.update_status()
-            await interaction.response.send_message("✅ Cleared all allowed roles. Bot is now open to everyone (unless global toggled off).", delete_after=10)
+            await interaction.followup.send("✅ Cleared all allowed roles. Bot is now open to everyone (unless global toggled off).")
 
     @admin_group.command(name="sync", description="Sync application commands")
     @app_commands.default_permissions(administrator=True)
