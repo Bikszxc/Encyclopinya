@@ -1,5 +1,6 @@
 import discord
 from discord import ui
+from core.database import Database
 
 # --- Colors ---
 class Colors:
@@ -14,34 +15,33 @@ class VoteView(ui.View):
     def __init__(self, doc_id: int):
         super().__init__(timeout=None) # Persistent view
         self.doc_id = doc_id
+        self.voted_users = set()
 
     @ui.button(label="Helpful", style=discord.ButtonStyle.success, emoji="👍", custom_id="vote_helpful")
     async def helpful(self, interaction: discord.Interaction, button: ui.Button):
-        # Update button state
-        button.label = "Voted"
-        button.disabled = True
-        self.children[1].disabled = True # Disable 'Wrong' button too
+        if interaction.user.id in self.voted_users:
+            await interaction.response.send_message("You have already voted on this reply.", ephemeral=True)
+            return
+
+        self.voted_users.add(interaction.user.id)
         
-        await interaction.response.edit_message(view=self)
+        # Log the vote in the database
+        await Database.execute("UPDATE pinya_docs SET metadata = jsonb_set(metadata, '{votes}', (COALESCE(metadata->>'votes','0')::int + 1)::text::jsonb) WHERE id = $1", self.doc_id)
         
-        # In a real app, you would call the database to log the vote
-        # await Database.execute("UPDATE pinya_docs SET metadata = jsonb_set(metadata, '{votes}', (COALESCE(metadata->>'votes','0')::int + 1)::text::jsonb) WHERE id = $1", self.doc_id)
-        
-        # For now, just logging or a placeholder since Database import might cause circular dependency if not careful
-        # We will handle the database logic in the Cog or inject a callback.
-        # But for simplicity, we'll just acknowledge.
-        # Ideally, this view should be created with a callback or reference to the DB logic.
-        pass
+        await interaction.response.send_message("Thanks for your feedback! 👍", ephemeral=True)
 
     @ui.button(label="Wrong", style=discord.ButtonStyle.danger, emoji="👎", custom_id="vote_wrong")
     async def wrong(self, interaction: discord.Interaction, button: ui.Button):
-         # Update button state
-        button.label = "Flagged"
-        button.disabled = True
-        self.children[0].disabled = True
+        if interaction.user.id in self.voted_users:
+            await interaction.response.send_message("You have already voted on this reply.", ephemeral=True)
+            return
+
+        self.voted_users.add(interaction.user.id)
         
-        await interaction.response.edit_message(view=self)
-        # Logic for flagging would go here.
+        # Log the flag in the database
+        await Database.execute("UPDATE pinya_docs SET metadata = jsonb_set(metadata, '{flags}', (COALESCE(metadata->>'flags','0')::int + 1)::text::jsonb) WHERE id = $1", self.doc_id)
+        
+        await interaction.response.send_message("Thanks for flagging this. 👎", ephemeral=True)
 
 class TeachModal(ui.Modal, title="Teach PinyaBot"):
     topic = ui.TextInput(label="Topic", placeholder="e.g., How to fish", required=True, max_length=100)
